@@ -27,7 +27,7 @@ if [ -d ~/tigertally/.git ]; then
   echo "  已存在，拉取最新"
   cd ~/tigertally && git pull --ff-only 2>&1 | tail -2
 else
-  git clone git@github-tigertally:mr-wendao/BaiYing.git ~/tigertally 2>&1 | tail -3
+  git clone git@github-tigertally:mr-wendao/TigerTally.git ~/tigertally 2>&1 | tail -3
   cd ~/tigertally
 fi
 
