@@ -34,3 +34,22 @@ __pycache__/
 *.pyc
 venv/
 .venv/
+
+# ===== 编译产物：绝不提交 =====
+# Go 编译出来的可执行文件没有任何扩展名，必须按路径精确挡 ——
+# 否则 .gitignore 抓不到它，14MB 二进制就进仓库了。
+/server/tigertally
+/tigertally
+server/tigertally
+
+# 其他平台的产物
+*.exe
+*.dll
+*.dylib
+*.o
+*.a
+
+# 构建目录
+dist/
+build/
+out/
