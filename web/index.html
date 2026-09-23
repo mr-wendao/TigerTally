@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>工作群</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{overflow-x:hidden}
+body{margin:0;background:#0e1014;color:#dfe3ea;width:var(--vw,100%);max-width:var(--vw,100%);overflow-x:hidden;
+ font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif}
+header{position:sticky;top:0;z-index:20;background:rgba(14,16,20,.94);
+ backdrop-filter:blur(12px);border-bottom:1px solid #1e2229;padding:10px 14px;max-width:100%}
+.hrow{display:flex;align-items:center;gap:9px;min-width:0}
+h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.3px;white-space:nowrap}
+.live{width:7px;height:7px;border-radius:50%;background:#3fbf6a;
+ box-shadow:0 0 0 0 rgba(63,191,106,.7);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 7px rgba(63,191,106,0)}100%{box-shadow:0 0 0 0 rgba(63,191,106,0)}}
+.sub{font-size:11px;color:#5d6673;margin-left:auto;font-variant-numeric:tabular-nums}
+/* ===== 成员栏：头像 + 名字 + 状态（参照 Hermes Bot Mode 的 roster） ===== */
+.strip{display:flex;flex-wrap:wrap;gap:8px;padding:9px 14px;border-bottom:1px solid #1a1e24;
+ background:#0b0d10;max-width:100%}
+.mcard{flex:0 0 auto;display:flex;align-items:center;gap:7px;padding:5px 10px 5px 6px;
+ border-radius:22px;border:1px solid #232831;background:#12151a;white-space:nowrap;
+ position:relative;transition:border-color .2s,background .2s}
+.mcard .avw{position:relative;flex:0 0 auto;width:26px;height:26px}
+.mcard img.av{width:26px;height:26px;border-radius:50%;display:block}
+.mcard .nm{font-size:11.5px;color:#98a2b0;line-height:1.25}
+.mcard .st{font-size:9.5px;color:#5d6673;line-height:1.25;display:block}
+.mcard .pres{position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border-radius:50%;
+ border:2px solid #0b0d10;background:#3fbf6a}
+.mcard.busy .pres{background:#3fbf6a;animation:pulse2 1.4s infinite}
+.mcard.idle .pres{background:#5d6673}
+.mcard.boss{border-color:#2a3b57;background:#101722}
+.mcard.boss .nm{color:#8ab4f8}
+.mcard.mgr{border-color:#3d3423;background:#17140d}
+.mcard.mgr .nm{color:#e3b04b}
+.mcard.worker{border-color:#1f3026;background:#0f1613}
+.mcard.worker .nm{color:#5cc98b}
+.mcard.worker.busy{border-color:#2f5c3c}
+.mcard.guest{border-color:#2c2740;background:#14111c}
+.mcard.guest .nm{color:#9d8bd8}
+.mcard.meta{border-style:dashed;color:#4d5561;padding:6px 11px}
+.mcard.meta .nm{color:#4d5561;font-size:10.5px}
+@keyframes pulse2{0%,100%{box-shadow:0 0 0 0 rgba(63,191,106,.55)}50%{box-shadow:0 0 0 5px rgba(63,191,106,0)}}
+
+/* ===== 群头 ===== */
+.gach{width:30px;height:30px;border-radius:9px;flex:0 0 auto;display:block}
+.gsub{font-size:10.5px;color:#5d6673;margin-top:1px}
+main{padding:10px 12px 190px;max-width:760px;margin:0 auto}
+.zero{text-align:center;color:#4d5561;font-size:12px;padding:40px 0}
+.day{text-align:center;margin:16px 0 10px}
+.day span{font-size:11px;color:#5d6673;background:#161a20;padding:3px 12px;border-radius:20px}
+/* ===== 消息：左头像 + 右内容（群聊式） ===== */
+.ev{display:flex;gap:9px;margin:11px 0;animation:fade .35s ease;align-items:flex-start}
+.ev .avw{flex:0 0 auto;width:30px;height:30px;position:relative}
+.ev .avw img{width:30px;height:30px;border-radius:50%;display:block}
+.ev .avb{flex:1 1 auto;min-width:0}
+/* 老板自己的话靠右（微信习惯），别人都在左 */
+.ev.boss{flex-direction:row-reverse}
+.ev.boss .name{justify-content:flex-end}
+.ev.boss .avb{display:flex;flex-direction:column;align-items:flex-end}
+.ev.boss .bubble{max-width:100%}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.name{font-size:12px;font-weight:650;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.name .t{color:#4d5561;font-weight:400;font-size:10.5px;font-variant-numeric:tabular-nums}
+.name .s{font-weight:400;font-size:10px;color:#465060;
+ border:1px solid #1c2027;border-radius:4px;padding:0 4px;max-width:110px;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.boss .name{color:#8ab4f8}
+.mgr .name{color:#e3b04b}
+.horse .name{color:#5cc98b}
+.sys .name{color:#6b7480}
+.guest .name{color:#9d8bd8}
+.bubble{padding:8px 11px;border-radius:11px;font-size:14px;white-space:pre-wrap;
+ word-break:break-word;border:1px solid transparent}
+.boss .bubble{background:#182030;border-color:#22304a}
+.mgr .bubble{background:#221d13;border-color:#3a3122}
+.horse .bubble{background:#111a15;border-color:#1e2e24;font-size:13px;color:#c6d2cb}
+.sys .bubble{background:#14171c;border-color:#1e2229;font-size:12px;color:#8b95a3}
+.bubble.pending{opacity:.55}
+.tool{margin:6px 0 6px 4px;min-width:0}
+.tool>summary{font-size:11.5px;color:#5a6472;cursor:pointer;list-style:none;max-width:100%;
+ padding:3px 8px;border-radius:6px;background:#12151a;display:inline-block;border:1px solid #1c2027;
+ overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+.tool>summary::-webkit-details-marker{display:none}
+.tool>summary:before{content:"▸ "}
+.tool[open]>summary:before{content:"▾ "}
+.tool pre{margin:6px 0 0;padding:8px 10px;background:#0b0d10;border:1px solid #1a1e24;
+ border-radius:8px;font-size:11px;color:#8b95a3;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
+.grp{margin:8px 0 8px 4px;min-width:0}
+.grp>summary{font-size:11.5px;color:#5a6472;cursor:pointer;list-style:none;max-width:100%;
+ padding:4px 9px;border-radius:7px;background:#12151a;display:inline-block;border:1px solid #1c2027;
+ overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary:before{content:"▸ "}
+.grp[open]>summary:before{content:"▾ "}
+.grp .inner{margin:6px 0 0 8px;padding-left:10px;border-left:1px solid #1e2229}
+.grp .inner div{font-size:11.5px;color:#7c8694;padding:2px 0;word-break:break-all}
+footer{position:fixed;left:0;right:0;z-index:30;bottom:0;background:#0e1014;
+ width:var(--vw,100%);max-width:var(--vw,100%);
+ padding-bottom:max(var(--padb,76px), env(safe-area-inset-bottom,0px))}
+footer .bar{background:#181d25;border-top:1px solid #333d4a;
+ border-radius:16px 16px 0 0;padding:9px 12px;
+ padding-left:max(12px, env(safe-area-inset-left,0px));
+ padding-right:max(12px, env(safe-area-inset-right,0px));
+ display:flex;gap:8px;align-items:center;
+ box-shadow:0 -10px 28px rgba(0,0,0,.40)}
+footer .hint{font-size:10px;color:#6b7480;white-space:nowrap;flex:0 0 auto}
+footer input{flex:1 1 auto;background:#0f1218;border:1px solid #262e38;border-radius:11px;
+ padding:11px 13px;color:#eaeef5;font-size:15px;outline:none;font-family:inherit;min-width:0}
+footer input::placeholder{color:#5a6472}
+footer input:focus{border-color:#3d74b8;background:#101520}
+footer button{flex:0 0 auto;background:#2f6fbf;border:none;color:#fff;
+ border-radius:11px;padding:11px 17px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+footer button:active{background:#3d82d8}
+footer button:disabled{background:#242a33;color:#5d6673}
+.toast{position:fixed;bottom:calc(160px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+ background:#2a1d1d;border:1px solid #4a2c2c;color:#e0a0a0;font-size:12px;
+ padding:6px 14px;border-radius:8px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30}
+.toast.on{opacity:1}
+.toast.ok{background:#16241a;border-color:#2b5134;color:#8fe0a8}
+/* ===== @ 选人：打 @ 弹出成员列表（像微信/钉钉那样） ===== */
+footer .pick{position:absolute;left:8px;right:8px;bottom:100%;margin-bottom:6px;
+ background:#181d25;border:1px solid #333d4a;border-radius:12px;
+ box-shadow:0 -8px 24px rgba(0,0,0,.5);display:none;max-height:40vh;overflow-y:auto;z-index:31}
+footer .pick.on{display:block}
+footer .pick .ph{font-size:10.5px;color:#5d6673;padding:7px 11px 3px}
+footer .pick .pi{display:flex;align-items:center;gap:9px;padding:9px 11px;font-size:14px;
+ color:#dfe3ea;cursor:pointer;border-top:1px solid #1e2229}
+footer .pick .pi:first-of-type{border-top:none}
+footer .pick .pi:active{background:#222a35}
+footer .pick .pi img{width:24px;height:24px;border-radius:50%;flex:0 0 auto;display:block}
+footer .pick .pi .pn{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+footer .pick .pi .pd{font-size:10.5px;color:#5d6673;flex:0 0 auto}
+.note{font-size:10.5px;color:#4d5561;text-align:center;padding:14px 20px 4px;line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <img class="gach" id="gach" alt="">
+    <div style="flex:1 1 auto;min-width:0">
+      <h1>工作群 <span class="live" id="dot" style="display:inline-block;vertical-align:middle"></span></h1>
+      <div class="gsub" id="gsub">正在载入名册…</div>
+    </div>
+    <div class="sub" id="meta">连接中…</div>
+  </div>
+</header>
+<div class="strip" id="strip"></div>
+<main id="feed"><div class="zero">正在载入…</div></main>
+<footer>
+  <div class="pick" id="pick"></div>
+  <div class="bar">
+    <span class="hint">发到群里</span>
+    <input id="say" placeholder="打 @ 可以点名" autocomplete="off" autocapitalize="off" autocorrect="off">
+    <button id="sendBtn" onclick="send()">发送</button>
+  </div>
+</footer>
+<div class="toast" id="toast"></div>
+<script>
+/* 快照文件必须带时间戳加载 —— 否则浏览器会吃缓存，页面永远停在上一次的数据上。
+   这个坑实测踩过：静态 <script src="chat.js"> 会一直用旧版。 */
+function loadChatScript(cb){
+  const s = document.createElement("script");
+  s.src = "chat.js?t=" + Date.now();
+  s.onload  = () => { s.remove(); if (window.CHAT && window.CHAT.length) chat = window.CHAT; cb && cb(); };
+  s.onerror = () => { s.remove(); cb && cb(); };
+  document.body.appendChild(s);
+}
+/* ============ 配置 ============
+   所有私密信息（总线地址、主题名、口令）都不写在代码里，
+   而是从同目录的 config.js 读 —— 仓库里只放 config.example.js，别把你的密钥提交上来。 */
+const CFG = window.GROUP_CONFIG || {};
+if (!CFG.topic || !CFG.base) {
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("feed").innerHTML =
+      '<div class="zero">还没配置：把 config.example.js 复制成 config.js，填上你自己的设置。</div>';
+  });
+}
+const TOPIC = CFG.topic || "";
+const IN_TOPIC = CFG.inTopic || TOPIC;
+const TOKEN = CFG.token || "";
+const NT = (CFG.base || "") + "/" + TOPIC + "/json?poll=1&";
+
+let chat = [], evs = [], locals = [], rendered = 0;
+const seenId = new Set();
+let lastTs = 0;
+
+/* ---------- 我们的对话（快照，我每次动手时重刷） ---------- */
+function loadChat(){
+  if (window.CHAT && window.CHAT.length){ chat = window.CHAT; }
+}
+/* 每 60 秒重取一次快照文件，这样我刷新过之后，页面自己就跟上了 */
+function reloadChat(){
+  loadChatScript(() => { render(); strip(); meta(); });
+}
+
+/* ---------- 小马的事件（增量拉，省流量） ---------- */
+async function loadNtfy(){
+  try{
+    const since = lastTs ? String(Math.floor(lastTs/1000) - 5) : "12h";
+    const r = await fetch(NT + "since=" + since);
+    const t = await r.text();
+    let added = 0;
+    t.split("\n").forEach(l=>{
+      l = l.trim(); if(!l) return;
+      let d; try{ d = JSON.parse(l); }catch(_){ return; }
+      if(d.event !== "message" || !d.id) return;
+      if(seenId.has(d.id)) return;
+      seenId.add(d.id);
+      const ts = (d.time || 0) * 1000;
+      if(ts > lastTs) lastTs = ts;
+      evs.push({ id:d.id, title:d.title || "", body:d.message || "", ts:ts });
+      added++;
+    });
+    if(added){
+      evs.sort((a,b)=>a.ts - b.ts);
+      /* 小马中继回来的老板消息，把本页的「待送达」回声消掉 */
+      evs.filter(e=>/老板/.test(e.title)).forEach(e=>{
+        const i = locals.findIndex(x=>x.body === e.body);
+        if(i >= 0) locals.splice(i,1);
+      });
+    }
+    return added;
+  }catch(e){ return 0; }
+}
+
+const PAGE_VER = "v3";
+/* ---------- 头像：确定性生成（同名必同图，不联网、不依赖后端） ----------
+   思路照搬 Hermes Bot Mode：头像不存图片，用名字算 hash 现场画。
+   好处：新人发一条话就自动有头像，我不用预先生成任何素材。 */
+const _avCache = {};
+function hashOf(s){
+  let h = 2166136261 >>> 0;
+  s = String(s || "?");
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+function avatar(name){
+  if(_avCache[name]) return _avCache[name];
+  const h = hashOf(name), hue = h % 360;
+  const bg = "hsl("+hue+",30%,15%)", fg = "hsl("+hue+",62%,62%)";
+  let cells = "";
+  for(let y=0;y<5;y++){
+    for(let x=0;x<3;x++){
+      if((h >>> (y*3+x)) & 1){
+        cells += '<rect x="'+x*4+'" y="'+y*4+'" width="4" height="4"/>';
+        if(x<2) cells += '<rect x="'+((4-x)*4)+'" y="'+y*4+'" width="4" height="4"/>';
+      }
+    }
+  }
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">'
+    + '<rect width="20" height="20" fill="'+bg+'"/>'
+    + '<g fill="'+fg+'">'+cells+'</g></svg>';
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  _avCache[name] = url;
+  return url;
+}
+function avImg(name){
+  return '<span class="avw"><img class="av" src="'+avatar(name)+'" alt=""></span>';
+}
+
+/* ---------- 分类 ---------- */
+function whoOf(e){
+  const t = e.title || "";
+  if(/老板/.test(t)) return "boss";
+  if(/职业经理|经理/.test(t)) return "mgr";
+  if(/APP-OK|连通测试/.test(t)) return "sys";
+  /* 小马的播报：开工/完工/派活/失败/步骤 都算它 */
+  if(/小马|开工|完工|派活|失败|步骤|步动作/.test(t)) return "horse";
+  /* 其他任何名字 —— 新成员直接进群，不用改代码 */
+  return "guest";
+}
+/* 显示名：guest 直接用 title 里的成员名 */
+function nameOf(e){
+  const t = (e.title || "").trim();
+  if(/老板/.test(t)) return "老板";
+  if(/职业经理|经理/.test(t)) return "职业经理";
+  if(/APP-OK|连通测试/.test(t)) return "系统";
+  if(/小马|开工|完工|派活|失败|步骤|步动作/.test(t)) return "小马";
+  return t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,"").trim() || "成员";
+}
+function horseKind(e){
+  const t = e.title || "";
+  if(/派活/.test(t)) return "key";
+  if(/开工|完工|失败|错误|接单/.test(t)) return "key";
+  if(/小马说|💬/.test(t)) return "key";
+  return "action";
+}
+
+/* ---------- 时间 ---------- */
+function hm(ms){ const d=new Date(ms);
+  return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function dayKey(ms){ const d=new Date(ms); return (d.getMonth()+1)+"-"+d.getDate(); }
+
+/* ---------- 合并成一条时间线 ---------- */
+function build(){
+  const out = [];
+  chat.forEach(c=>{
+    const ms = c.ms || 0;
+    if(c.role === "tool"){ out.push({kind:"tool", ms:ms, text:c.text}); return; }
+    if(c.role !== "user" && c.role !== "assistant") return;
+    const txt = (c.text||"").trim(); if(!txt) return;
+    out.push({kind:"msg", who:(c.role==="user"?"boss":"mgr"), ms:ms, text:txt, sess:c.sess||""});
+  });
+  evs.forEach(e=>{
+    const who = whoOf(e);
+    if(who === "sys"){ out.push({kind:"msg", who:"sys", ms:e.ts, text:e.body||e.title}); return; }
+    if(who === "boss"){ out.push({kind:"msg", who:"boss", ms:e.ts, text:e.body, sess:"小马转" }); return; }
+    if(who === "mgr"){ out.push({kind:"msg", who:"mgr", ms:e.ts, text:e.body}); return; }
+    if(who === "guest"){ out.push({kind:"msg", who:"guest", ms:e.ts, text:e.body, name:nameOf(e)}); return; }
+    out.push({kind:"act", ms:e.ts, title:e.title, body:e.body, weight:horseKind(e)});
+  });
+  locals.forEach(l=>out.push({kind:"msg", who:"boss", ms:l.ts, text:l.body, pending:true}));
+  out.sort((a,b)=>a.ms-b.ms);
+  return out;
+}
+/* ---------- 相邻动作折叠 ---------- */
+function fold(items){
+  const res = []; let buf = [];
+  const flush = ()=>{
+    if(!buf.length) return;
+    const keys = buf.filter(x=>x.weight==="key");
+    const acts = buf.filter(x=>x.weight!=="key");
+    keys.forEach(k=>res.push({kind:"msg", who:"horse", ms:k.ms, text:(k.title?k.title+"\n":"")+k.body}));
+    if(acts.length === 1){
+      res.push({kind:"msg", who:"horse", ms:acts[0].ms, text:(acts[0].title?acts[0].title+"\n":"")+acts[0].body});
+    } else if(acts.length > 1){
+      res.push({kind:"grp", ms:acts[0].ms, items:acts});
+    }
+    buf = [];
+  };
+  items.forEach(it=>{ if(it.kind==="act"){ buf.push(it); } else { flush(); res.push(it); } });
+  flush();
+  return res;
+}
+function esc(s){ return String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+function render(){
+  const items = fold(build());
+  const feed = document.getElementById("feed");
+  if(!items.length){ feed.innerHTML = '<div class="zero">暂无消息</div>'; return; }
+  let html = "", lastDay = "";
+  items.forEach(it=>{
+    const dk = dayKey(it.ms);
+    if(dk !== lastDay){ lastDay = dk; html += '<div class="day"><span>'+dk+'</span></div>'; }
+    if(it.kind === "tool"){
+      const one = (it.text||"").replace(/\s+/g," ").slice(0,70);
+      html += '<details class="tool"><summary>工具结果 · '+esc(one)+'</summary><pre>'+esc(it.text||"")+'</pre></details>';
+    } else if(it.kind === "grp"){
+      html += '<details class="grp"><summary>'+it.items.length+' 步动作</summary><div class="inner">';
+      it.items.forEach(a=>{
+        const line = ((a.title?a.title+" · ":"")+(a.body||"")).split("\n")[0].slice(0,110);
+        html += '<div>'+hm(a.ms)+'  '+esc(line)+'</div>';
+      });
+      html += '</div></details>';
+    } else {
+      const who = it.who;
+      const label = it.name || {boss:"老板", mgr:"职业经理", horse:"小马", sys:"系统"}[who] || who;
+      const stag = it.sess ? '<span class="s">'+esc(it.sess)+'</span>' : '';
+      const pend = it.pending ? ' <span style="color:#5d6673;font-weight:400">· 待小马接单</span>' : '';
+      html += '<div class="ev '+who+'">'+avImg(label)
+            + '<div class="avb"><div class="name">'+esc(label)+stag
+            + '<span class="t">'+hm(it.ms)+'</span>'+pend+'</div>'
+            + '<div class="bubble'+(it.pending?" pending":"")+'">'+esc(it.text)+'</div></div></div>';
+    }
+  });
+  feed.innerHTML = html;
+  rendered = items.length;
+}
+
+/* ---------- 名册：本机名册 + 群里实际冒过泡的成员（发一条就自动入册） ---------- */
+function rosterAll(){
+  const base = (window.ROSTER || [
+    {id:"boss",name:"老板",kind:"human"},
+    {id:"mgr",name:"职业经理",kind:"agent"}]).slice();
+  const have = {}; base.forEach(r=>{ have[r.name] = 1; });
+  const found = {};
+  evs.forEach(e=>{
+    if(whoOf(e) !== "guest") return;
+    const n = nameOf(e); if(!n) return;
+    found[n] = Math.max(found[n] || 0, e.ts);
+  });
+  Object.keys(found).forEach(n=>{
+    if(have[n]) return;
+    base.push({ id:"g-"+n, name:n, kind:"guest", last:found[n] });
+  });
+  return base;
+}
+/* 小马在不在干活：从最近的事件往回找，遇到「开工/执行/步」算忙，遇到「完工/失败」算闲 */
+function horseBusy(){
+  const now = Date.now();
+  const r = evs.filter(e=> now - e.ts < 30*60*1000);
+  for(let i=r.length-1;i>=0;i--){
+    const t = r[i].title || "";
+    if(/完工|失败|错误|完成/.test(t)) return false;
+    if(/开工|执行|步动作|\d+\s*步/.test(t)) return true;
+  }
+  return false;
+}
+function agoTxt(ts){
+  const d = Date.now() - ts;
+  if(d < 120*1000) return "刚说过话";
+  if(d < 3600*1000) return Math.round(d/60000) + " 分钟前";
+  return hm(ts) + " 说过";
+}
+/* ---------- 名册栏（参照 Hermes Bot Mode 的 roster：头像 + 名字 + 在线状态） ---------- */
+function strip(){
+  const roster = rosterAll(), busy = horseBusy(), s = [];
+  roster.forEach(r=>{
+    let cls = "guest", st = "", green = true;
+    if(r.kind === "human" || r.id === "boss"){ cls = "boss"; st = "在线"; }
+    else if(r.kind === "agent" || r.id === "mgr"){ cls = "mgr"; st = "在线 · 出方案"; }
+    else if(r.kind === "worker"){ cls = "worker" + (busy?" busy":""); st = busy?"干活中":"空闲"; green = busy; }
+    else { st = r.last ? agoTxt(r.last) : "进群了";
+           green = !!r.last && (Date.now() - r.last < 300*1000); }
+    s.push('<div class="mcard ' + cls + '">'
+      + '<span class="avw"><img class="av" src="' + avatar(r.name) + '" alt="">'
+      + '<span class="pres"' + (green ? '' : ' style="background:#5d6673"') + '></span></span>'
+      + '<span class="nm">' + esc(r.name) + '<span class="st">' + esc(st) + '</span></span></div>');
+  });
+  const last = evs.length ? evs[evs.length-1] : null;
+  if(last) s.push('<div class="mcard meta"><span class="nm">最后动静 ' + hm(last.ts) + '</span></div>');
+  document.getElementById("strip").innerHTML = s.join("");
+  const g = document.getElementById("gsub");
+  if(g) g.textContent = roster.length + " 位成员 · " + (evs.length ? ("实时 · "+evs.length+" 条") : "等待消息") + " · " + PAGE_VER;
+}
+function meta(){
+  document.getElementById("meta").textContent = evs.length + " 条事件 · " + new Date().toTimeString().slice(0,5);
+}
+function toast(m, dur, ok){
+  const t = document.getElementById("toast");
+  t.textContent = m; t.className = "toast on" + (ok ? " ok" : "");
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove("on"), dur || 2200);
+}
+
+/* ---------- 发消息 ---------- */
+/* @ 选人：输入框里出现 @ 就弹出成员列表，点一下就补全（不用记名字） */
+const MENTION_ALL = "所有人";
+function pickTargets(){
+  const rs = rosterAll().filter(r => r.kind !== "guest").map(r => r.name);
+  const gs = rosterAll().filter(r => r.kind === "guest").map(r => r.name);
+  return rs.concat(gs).concat([MENTION_ALL]);
+}
+function mentionQuery(v){
+  const m = /@([^\s@]*)$/.exec(v || "");
+  return m ? m[1] : null;
+}
+function renderPick(q){
+  const box = document.getElementById("pick");
+  if(!box) return;
+  if(q === null){ box.classList.remove("on"); return; }
+  const list = pickTargets().filter(n => !q || n.toLowerCase().indexOf(q.toLowerCase()) === 0);
+  if(!list.length){ box.classList.remove("on"); return; }
+  box.innerHTML = '<div class="ph">点一下点名谁</div>' + list.map(n =>
+    '<div class="pi" data-n="' + esc(n) + '"><img src="' + avatar(n) + '" alt="">'
+    + '<span class="pn">@' + esc(n) + '</span>'
+    + '<span class="pd">' + (n === MENTION_ALL ? "全部" : "点名") + '</span></div>').join("");
+  box.classList.add("on");
+  [...box.querySelectorAll(".pi")].forEach(el=>{
+    el.addEventListener("mousedown", ev=>{ ev.preventDefault(); insertMention(el.dataset.n); });
+    el.addEventListener("touchstart", ev=>{ ev.preventDefault(); insertMention(el.dataset.n); }, {passive:false});
+  });
+}
+function insertMention(name){
+  const el = document.getElementById("say");
+  el.value = (el.value || "").replace(/@([^\s@]*)$/, "@" + name + " ");
+  renderPick(null);
+  el.focus();
+  if(window.__placeFooter) window.__placeFooter();
+}
+(function bindMention(){
+  const el = document.getElementById("say");
+  if(!el) return;
+  const upd = ()=>renderPick(mentionQuery(el.value));
+  el.addEventListener("input", upd);
+  el.addEventListener("keyup", upd);
+  el.addEventListener("click", upd);
+  el.addEventListener("blur", ()=>setTimeout(()=>renderPick(null), 180));
+})();
+
+let sending = false;
+async function send(){
+  const el = document.getElementById("say");
+  const txt = el.value.trim();
+  if(!txt || sending) return;
+  sending = true;
+  el.value = "";
+  renderPick(null);
+  const now = Date.now();
+  locals.push({body:txt, ts:now});
+  render();
+  window.scrollTo(0, document.body.scrollHeight);
+  try{
+    /* 发到「群总线」（出站主题）—— 这是群聊通道，room_agent 秒级接走。
+       不再发入站主题：那条是老派活通道（boss_listener），会派一轮完整工单，
+       既慢（十几秒）又和群聊通道重复回话。群聊就该走群总线。 */
+    const r = await fetch((CFG.base || "") + "/" + TOPIC, {
+      method:"POST",
+      headers:{"Content-Type":"text/plain", "Title":"老板"},
+      body: JSON.stringify({tok:TOKEN, cmd:txt, ts:Math.floor(now/1000)})
+    });
+    if(!r.ok) toast("发送失败 HTTP " + r.status);
+    else toast("已发给小马 ✓", 1600, true);
+  }catch(e){ toast("发送失败：网络不通"); }
+  sending = false;
+}
+
+/* ---------- 启动 ---------- */
+let firstLoad = true, pinnedBottom = true;
+window.addEventListener("scroll", ()=>{
+  pinnedBottom = (window.scrollY + window.innerHeight) >= (document.body.scrollHeight - 120);
+}, {passive:true});
+
+async function refresh(){
+  loadChat();
+  await loadNtfy();
+  render(); strip(); meta();
+  document.getElementById("dot").style.background = "#3fbf6a";
+  if (firstLoad || pinnedBottom){ window.scrollTo(0, document.body.scrollHeight); firstLoad = false; }
+}
+loadChatScript(()=>{ refresh(); });
+/* 群头像：同样由名字确定性生成，不存图片素材 */
+document.getElementById("gach").src = avatar("工作群");
+/* ---------- 输入框：钉在屏幕可见底边；键盘弹出时自动抬到键盘上方 ----------
+   坑：WebView 里 layout 视口(innerHeight)常常比"真正看得见的高度"(visualViewport)高，
+   所以 bottom:0 会掉到可见区外面 → 必须按可视区计算补偿。 */
+(function(){
+  const f = document.querySelector("footer");
+  if(!f) return;
+  const vv = window.visualViewport;
+  /* 键盘收起时底部死留的空白 —— 必须盖过系统导航栏。
+     真机实测（荣耀 X50i+，1080×2412，dpr3）：导航栏约 55 CSS px 且浮在网页上层，
+     visualViewport 并不排除它 → 只能自己留死。76 是留了余量的安全值。 */
+  const BAR_MIN = 76;
+  const GAP_KB  = 24;   /* 键盘弹出时，输入框离键盘的一点余量 */
+  let lastCovered = -1, lastReserve = -1, lastW = -1;
+  function place(){
+    const ih = window.innerHeight;
+    let covered = 0;
+    if(vv) covered = Math.max(0, Math.round(ih - vv.height - vv.offsetTop));
+    /* 键盘弹起会让可视高度明显缩水 → 用这个判断键盘状态，比判断导航栏可靠 */
+    const kbOpen = !!(vv && vv.height < ih * 0.85);
+    const reserve = kbOpen ? GAP_KB : BAR_MIN;
+    /* 宽度同理会「说谎」：这个 WebView 的布局宽（innerWidth）可能比真实可见宽大一截
+       （实测 451 vs 412）→ 固定定位的输入条会向右戳出屏幕，发送键被切掉。
+       取三者最小值当真实可见宽，硬性钉死。 */
+    const cw = Math.min(
+      window.innerWidth || 9999,
+      document.documentElement.clientWidth || 9999,
+      (vv && vv.width) || 9999);
+    const W = (cw > 0 && cw < 9999) ? Math.round(cw) : 0;
+    if(W && W !== lastW){
+      lastW = W;
+      document.documentElement.style.setProperty("--vw", W + "px");
+    }
+    const changed = (covered !== lastCovered || reserve !== lastReserve || (W && W !== lastW));
+    if(!changed) return;
+    const raised = covered > lastCovered;
+    lastCovered = covered;
+    lastReserve = reserve;
+    f.style.bottom = covered + "px";
+    f.style.setProperty("--padb", reserve + "px");
+    if(W){ f.style.left = "0px"; f.style.right = "auto"; f.style.width = W + "px"; }
+    if(kbOpen && raised) setTimeout(()=>window.scrollTo(0, document.body.scrollHeight), 60);
+  }
+  place();
+  if(vv){ vv.addEventListener("resize", place); vv.addEventListener("scroll", place); }
+  window.addEventListener("resize", place);
+  window.addEventListener("orientationchange", ()=>setTimeout(place, 120));
+  const sayEl = document.getElementById("say");
+  sayEl.addEventListener("focus", ()=>setTimeout(place, 120));
+  sayEl.addEventListener("blur",  ()=>setTimeout(place, 120));
+  setInterval(place, 300);   /* 兜底：部分 WebView 不派发 viewport 事件 */
+  window.__placeFooter = place;
+
+  /* 真机体检回传：开页 / 键盘弹起 / 键盘收起 各发一次，用来精确核对这个页面 */
+  let diagN = 0;
+  function diag(tag){
+    try{
+      if(diagN++ > 8) return;
+      const r = f.getBoundingClientRect();
+      const cs = getComputedStyle(f);
+      const msg = tag+" ih="+window.innerHeight+" vvh="+(vv?Math.round(vv.height):"-")
+        +" off="+(vv?Math.round(vv.offsetTop):"-")+" iw="+window.innerWidth
+        +" dpr="+devicePixelRatio
+        +" cov="+(f.style.bottom||"0")+" padb="+f.style.getPropertyValue("--padb")
+        +" pb="+cs.paddingBottom+" fb="+Math.round(r.bottom)+" fh="+Math.round(r.height);
+      /* 体检通道（可选）：配了才发，不配就是空的 —— 用于排查手机上的视口问题 */
+      if (CFG.diag) fetch(CFG.diag, {method:"POST", body:msg}).catch(()=>{});
+    }catch(e){}
+  }
+  setTimeout(()=>diag("L"), 2000);
+  sayEl.addEventListener("focus", ()=>setTimeout(()=>diag("K"), 1300));
+  sayEl.addEventListener("blur",  ()=>setTimeout(()=>diag("N"), 1300));
+})();
+setInterval(async ()=>{ const n = await loadNtfy(); if(n > 0){ render(); meta(); } strip(); }, 5000);
+setInterval(reloadChat, 60000);   // 跟上我这边的刷新
+document.getElementById("say").addEventListener("keydown", e=>{
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# ===== 密钥与本地配置：绝不上传 =====
+config.js
+config.local.*
+*.token
+.env
+.env.*
+secrets/
+
+# ===== 生成的对话快照（含聊天内容与内部信息） =====
+chat.js
+chat.*.js
+snapshot/
+logs/
+*.log
+
+# ===== 运行时数据 =====
+data/
+*.db
+*.sqlite
+*.sqlite3
+state.json
+
+# ===== 系统与编辑器 =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===== 依赖 =====
+node_modules/
+__pycache__/
+*.pyc
+venv/
+.venv/
