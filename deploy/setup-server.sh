@@ -1,5 +1,5 @@
 #!/bin/bash
-# 在服务器上配置 BaiYing 仓库的推送环境
+# 在服务器上配置 TigerTally 仓库的推送环境
 set -e
 
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
