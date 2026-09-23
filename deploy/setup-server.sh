@@ -4,8 +4,8 @@ set -e
 
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
 
-# 1. SSH 别名：让 github-baiying 走这把部署密钥
-printf 'Host github-baiying\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/baiying_deploy\n  IdentitiesOnly yes\n' > ~/.ssh/config
+# 1. SSH 别名：让 github-tigertally 走这把部署密钥
+printf 'Host github-tigertally\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/tigertally_deploy\n  IdentitiesOnly yes\n' > ~/.ssh/config
 chmod 600 ~/.ssh/config
 
 # 2. known_hosts
@@ -19,16 +19,16 @@ echo "--- 1. 主机指纹（应为 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4U
 ssh-keygen -lf ~/.ssh/known_hosts 2>/dev/null | grep -i github || echo "  (无)"
 
 echo "--- 2. 密钥认证测试 ---"
-ssh -o StrictHostKeyChecking=yes -T git@github-baiying 2>&1 | head -2 || true
+ssh -o StrictHostKeyChecking=yes -T git@github-tigertally 2>&1 | head -2 || true
 
 echo "--- 3. 克隆仓库 ---"
 cd ~
-if [ -d ~/baiying/.git ]; then
+if [ -d ~/tigertally/.git ]; then
   echo "  已存在，拉取最新"
-  cd ~/baiying && git pull --ff-only 2>&1 | tail -2
+  cd ~/tigertally && git pull --ff-only 2>&1 | tail -2
 else
-  git clone git@github-baiying:mr-wendao/BaiYing.git ~/baiying 2>&1 | tail -3
-  cd ~/baiying
+  git clone git@github-tigertally:mr-wendao/BaiYing.git ~/tigertally 2>&1 | tail -3
+  cd ~/tigertally
 fi
 
 # 4. 提交身份（用仓库局部配置，不污染全局）
